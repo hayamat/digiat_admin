@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@hooks/useUser";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -28,6 +29,7 @@ const SkeletonRow = () => (
 );
 
 export default function UserList() {
+  const { username } = useUser();
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true); // ローディング状態を追加
@@ -56,7 +58,6 @@ export default function UserList() {
   }, []);
 
   const handleCreate = () => {
-    // クライアントサイドでのみ実行
     router.push("/users/create");
   };
 
@@ -70,25 +71,26 @@ export default function UserList() {
     }
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`/api/auth/users/${userId}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
         setUsers(users.filter((user) => user.id !== userId));
+        alert("ユーザーが削除されました");
       } else {
         const errorData = await response.json();
-        setError(errorData.message || "ユーザーの削除に失敗しました");
+        alert(errorData.message || "ユーザーの削除に失敗しました");
       }
     } catch (error) {
       console.error("削除エラー:", error);
-      setError("ネットワークエラーが発生しました");
+      alert("ネットワークエラーが発生しました");
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-full max-w-3xl">
+      <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-full max-w-4xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">ユーザー一覧</h2>
           <button

@@ -28,7 +28,7 @@ export async function POST(req) {
         name,
         email,
         hashedPassword,
-        "user", // 初期の登録は通常ユーザーとする
+        "Editor", // 初期の登録は通常ユーザーとする
       ]
     );
 

@@ -1,19 +1,15 @@
 import db from "@lib/db";
 import bcrypt from "bcryptjs";
-import { sign } from "jsonwebtoken";
+import { SignJWT } from "jose";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
   const { email, password } = await req.json();
 
   try {
-    // ユーザーをメールアドレスで検索
     const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [
       email,
     ]);
-
-    console.log(rows);
-
     if (rows.length === 0) {
       return NextResponse.json(
         { message: "Invalid email or password" },
@@ -22,11 +18,7 @@ export async function POST(req) {
     }
 
     const user = rows[0];
-
-    // パスワードの検証
     const isValidPassword = await bcrypt.compare(password, user.password);
-
-    console.log(isValidPassword);
     if (!isValidPassword) {
       return NextResponse.json(
         { message: "Invalid email or password" },
@@ -35,19 +27,30 @@ export async function POST(req) {
     }
 
     // JWTの生成
-    const token = sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "1h",
-      }
-    );
+    const token = await new SignJWT({ id: user.id, role: user.role })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("1h")
+      .sign(new TextEncoder().encode(process.env.JWT_SECRET));
 
-    // クライアントにJWTトークンを返す
-    return NextResponse.json({ token });
+    // クッキーにJWTとユーザー名をセット
+    const response = NextResponse.json({ message: "ログイン成功" });
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60, // 1時間
+      path: "/",
+    });
+    response.cookies.set("username", user.name, {
+      httpOnly: false, // クライアントサイドでアクセスできるように設定
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60, // 1時間
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
-    console.error("Login error:", error); // エラーをログに出力
-
+    console.error("Login error:", error);
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }
